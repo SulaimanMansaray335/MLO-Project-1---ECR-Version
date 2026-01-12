@@ -6,6 +6,9 @@ import dill
 from sklearn.metrics import r2_score
 from sklearn.model_selection import GridSearchCV
 from src.exception import CustomException
+from importlib import resources
+import pkgutil
+from pathlib import Path
 
 def save_object(file_path, obj):
     try:
@@ -52,8 +55,32 @@ def evaluate_models(x_train, y_train, x_test, y_test, models, params):
 
 def load_object(file_path):
     try:
-        with open(file_path, "rb") as file_obj:
-            return dill.load(file_obj)
+        # If given a real filesystem path, open it normally.
+        if os.path.exists(file_path):
+            with open(file_path, "rb") as file_obj:
+                return dill.load(file_obj)
+
+        # Otherwise, attempt to load the file as a package resource.
+        # Accept paths like "artifacts/model.pkl" or just "model.pkl".
+        resource_path = Path(file_path)
+        parts = list(resource_path.parts)
+
+        # Try importlib.resources (Python 3.9+)
+        try:
+            pkg = __package__ or 'src'
+            res = resources.files(pkg).joinpath(*parts)
+            with res.open('rb') as file_obj:
+                return dill.load(file_obj)
+        except Exception:
+            # Fallback to pkgutil.get_data which returns bytes
+            try:
+                pkg = __package__ or 'src'
+                data = pkgutil.get_data(pkg, "/".join(parts))
+                if data is None:
+                    raise FileNotFoundError(f"Resource not found: {file_path}")
+                return dill.loads(data)
+            except Exception as e:
+                raise
 
     except Exception as e:
-            raise CustomException(e, sys)
+        raise CustomException(e, sys)
