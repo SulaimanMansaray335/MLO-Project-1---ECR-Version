@@ -71,6 +71,13 @@ jobs:
           exit 1
         fi
 
+    - name: Validate ECS task definition
+      run: |
+        if [ -z "$ECS_TASK_DEFINITION" ]; then
+          echo "ECS_TASK_DEFINITION is empty. Set the secret 'ECS_TASK_DEFINITION' to the path to your task definition JSON or update the workflow env." >&2
+          exit 1
+        fi
+
     - name: Build, tag, and push image to Amazon ECR
       id: build-image
       env:
